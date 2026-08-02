@@ -39,8 +39,17 @@ const overlay = document.getElementById('overlay');
 const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
+const pauseMenu = document.getElementById('pause-menu');
+const pauseViewMain = document.getElementById('pause-view-main');
+const pauseViewControls = document.getElementById('pause-view-controls');
+const startLevelSelect = document.getElementById('start-level');
+const resumeBtn = document.getElementById('resume-btn');
+const pauseRestartBtn = document.getElementById('pause-restart-btn');
+const showControlsBtn = document.getElementById('show-controls-btn');
+const backBtn = document.getElementById('back-btn');
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
+let startLevel = 1;
 
 function createBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
@@ -106,7 +115,7 @@ function clearLines() {
   if (cleared) {
     lines += cleared;
     score += (LINE_SCORES[cleared] || 0) * level;
-    level = Math.floor(lines / 10) + 1;
+    level = startLevel + Math.floor(lines / 10);
     dropInterval = Math.max(100, 1000 - (level - 1) * 90);
     updateHUD();
   }
@@ -226,17 +235,42 @@ function endGame() {
   overlay.classList.remove('hidden');
 }
 
+function showPauseView(view) {
+  const isControls = view === 'controls';
+  pauseViewMain.classList.toggle('hidden', isControls);
+  pauseViewControls.classList.toggle('hidden', !isControls);
+}
+
+function openPauseMenu() {
+  showPauseView('main');
+  pauseMenu.classList.remove('hidden');
+}
+
+function closePauseMenu() {
+  // Si el foco quedó en el <select> o en un botón, las flechas / Space
+  // seguirían actuando sobre ellos en vez de sobre el juego.
+  if (pauseMenu.contains(document.activeElement)) document.activeElement.blur();
+  pauseMenu.classList.add('hidden');
+}
+
+function pauseMenuOpen() {
+  return !pauseMenu.classList.contains('hidden');
+}
+
+function controlsViewOpen() {
+  return pauseMenuOpen() && !pauseViewControls.classList.contains('hidden');
+}
+
 function togglePause() {
   if (gameOver) return;
   paused = !paused;
   if (!paused) {
+    closePauseMenu();
     lastTime = performance.now();
     loop(lastTime);
   } else {
     cancelAnimationFrame(animId);
-    overlayTitle.textContent = 'PAUSA';
-    overlayScore.textContent = '';
-    overlay.classList.remove('hidden');
+    openPauseMenu();
   }
 }
 
@@ -256,26 +290,47 @@ function loop(ts) {
   animId = requestAnimationFrame(loop);
 }
 
+function readStartLevel() {
+  const value = parseInt(startLevelSelect.value, 10);
+  if (!Number.isFinite(value)) return 1;
+  return Math.min(15, Math.max(1, value));
+}
+
 function init() {
   board = createBoard();
   score = 0;
   lines = 0;
-  level = 1;
+  startLevel = readStartLevel();
+  level = startLevel;
   paused = false;
   gameOver = false;
-  dropInterval = 1000;
+  dropInterval = Math.max(100, 1000 - (level - 1) * 90);
   dropAccum = 0;
   lastTime = performance.now();
   next = randomPiece();
   spawn();
   updateHUD();
   overlay.classList.add('hidden');
+  closePauseMenu();
   cancelAnimationFrame(animId);
   animId = requestAnimationFrame(loop);
 }
 
 document.addEventListener('keydown', e => {
-  if (e.code === 'KeyP') { togglePause(); return; }
+  if (e.code === 'KeyP' || e.code === 'Escape') {
+    e.preventDefault();
+    // Desde la sub-vista de controles, Escape vuelve al menú en vez de reanudar.
+    if (e.code === 'Escape' && controlsViewOpen()) {
+      showPauseView('main');
+      showControlsBtn.focus();
+      return;
+    }
+    togglePause();
+    return;
+  }
+  // Con el menú de pausa abierto ninguna tecla llega al juego,
+  // aunque el foco esté en el <select> o en un botón del menú.
+  if (pauseMenuOpen()) return;
   if (paused || gameOver) return;
   switch (e.code) {
     case 'ArrowLeft':
@@ -300,5 +355,23 @@ document.addEventListener('keydown', e => {
 });
 
 restartBtn.addEventListener('click', init);
+
+resumeBtn.addEventListener('click', () => {
+  if (paused) togglePause();
+});
+
+pauseRestartBtn.addEventListener('click', init);
+
+showControlsBtn.addEventListener('click', () => {
+  showPauseView('controls');
+  // El botón que tenía el foco queda oculto: se mueve el foco a la otra vista
+  // para que Tab (y Space) sigan dentro del menú y nunca reanuden la partida.
+  backBtn.focus();
+});
+
+backBtn.addEventListener('click', () => {
+  showPauseView('main');
+  showControlsBtn.focus();
+});
 
 init();
