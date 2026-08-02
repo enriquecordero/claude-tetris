@@ -48,7 +48,39 @@
       <div class="overlay-box">
         <p id="overlay-title">GAME OVER</p>
         <p id="overlay-score"></p>
+
+        <div id="gameover-extra" class="gameover-extra hidden">
+          <p id="overlay-stats" class="records-stats"></p>
+
+          <div id="save-record" class="save-record hidden">
+            <label class="records-label" for="record-name">¡Nuevo record! Escribe tu nombre</label>
+            <div class="save-record-row">
+              <input id="record-name" type="text" maxlength="10" autocomplete="off" spellcheck="false" placeholder="Anónimo" />
+              <button id="save-record-btn">Guardar</button>
+            </div>
+          </div>
+
+          <div id="overlay-records" class="records"></div>
+        </div>
+
         <button id="restart-btn">Reiniciar</button>
+      </div>
+    </div>
+
+    <div id="start-screen" class="start-screen">
+      <div class="start-box">
+        <p class="start-title">RECORDS</p>
+        <div id="start-records" class="records"></div>
+        <p id="start-stats" class="records-stats"></p>
+        <button id="play-btn">JUGAR</button>
+        <button id="clear-records-btn" class="btn-secondary">Borrar records</button>
+        <div id="clear-confirm" class="clear-confirm hidden">
+          <span>¿Seguro que quieres borrar todos los records?</span>
+          <div class="clear-confirm-row">
+            <button id="clear-yes" class="btn-danger">Sí, borrar</button>
+            <button id="clear-no" class="btn-secondary">Cancelar</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
