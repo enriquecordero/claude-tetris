@@ -37,8 +37,8 @@ body {
 
 #board {
   display: block;
-  border: 1px solid #2a2a3a;
-  background: #1a1a25;
+  border: 1px solid var(--canvas-border, #2a2a3a);
+  background: var(--canvas-bg, #1a1a25);
   border-radius: 4px;
   box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
 }
@@ -75,8 +75,8 @@ body {
 
 #next-canvas {
   display: block;
-  border: 1px solid #2a2a3a;
-  background: #1a1a25;
+  border: 1px solid var(--canvas-border, #2a2a3a);
+  background: var(--canvas-bg, #1a1a25);
   border-radius: 4px;
 }
 
@@ -515,4 +515,159 @@ kbd {
 
 #save-record-btn:hover {
   background: #a5d6a7;
+}
+
+/* ---- Skins ---- */
+:root {
+  --page-bg: #0f0f17;
+  --text: #e0e0e0;
+  --accent: #7aa2f7;
+  --accent-hover: #9bbdff;
+  --danger: #e57373;
+  --btn-text: #0f0f17;
+  --label: #555570;
+  --muted: #888;
+  --canvas-bg: #1a1a25;
+  --canvas-border: #2a2a3a;
+  --canvas-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+  --overlay-bg: rgba(10, 10, 20, 0.75);
+  --kbd-bg: #22223a;
+  --kbd-border: #3a3a5a;
+  --kbd-text: #aaa;
+}
+
+body.skin-neon {
+  --page-bg: #04040c;
+  --text: #d6fff4;
+  --accent: #1de9b6;
+  --accent-hover: #6bffdc;
+  --danger: #ff5370;
+  --btn-text: #04040c;
+  --label: #2e8577;
+  --muted: #5f9e93;
+  --canvas-bg: #05050e;
+  --canvas-border: #1de9b6;
+  --canvas-shadow: 0 0 40px rgba(29, 233, 182, 0.3);
+  --overlay-bg: rgba(2, 8, 12, 0.8);
+  --kbd-bg: #0a1a1a;
+  --kbd-border: #1de9b6;
+  --kbd-text: #6bffdc;
+}
+
+body.skin-pastel {
+  --page-bg: #f6f1fa;
+  --text: #4a4458;
+  --accent: #8d7bc0;
+  --accent-hover: #a998d6;
+  --danger: #d98a95;
+  --btn-text: #fdfbff;
+  --label: #a099b5;
+  --muted: #8b8399;
+  --canvas-bg: #fdfaff;
+  --canvas-border: #ded3ee;
+  --canvas-shadow: 0 8px 30px rgba(141, 123, 192, 0.18);
+  --overlay-bg: rgba(246, 241, 250, 0.82);
+  --kbd-bg: #ece5f6;
+  --kbd-border: #d6cbe8;
+  --kbd-text: #6f6684;
+}
+
+body.skin-pixel {
+  --page-bg: #15150f;
+  --text: #e8e0c0;
+  --accent: #f0c000;
+  --accent-hover: #ffe14d;
+  --danger: #e05050;
+  --btn-text: #15150f;
+  --label: #7a7050;
+  --muted: #a0966f;
+  --canvas-bg: #1c1c12;
+  --canvas-border: #4a4530;
+  --canvas-shadow: 0 0 0 4px #4a4530;
+  --overlay-bg: rgba(21, 21, 15, 0.82);
+  --kbd-bg: #2b2b1c;
+  --kbd-border: #4a4530;
+  --kbd-text: #d2c894;
+}
+
+body {
+  background: var(--page-bg);
+  color: var(--text);
+}
+
+.game-title,
+.value,
+#overlay-score {
+  color: var(--accent);
+}
+
+#overlay-title {
+  color: var(--danger);
+}
+
+.label {
+  color: var(--label);
+}
+
+.controls li {
+  color: var(--muted);
+}
+
+kbd {
+  background: var(--kbd-bg);
+  border-color: var(--kbd-border);
+  color: var(--kbd-text);
+}
+
+#board {
+  box-shadow: var(--canvas-shadow);
+}
+
+.overlay {
+  background: var(--overlay-bg);
+}
+
+#restart-btn {
+  background: var(--accent);
+  color: var(--btn-text);
+}
+
+#restart-btn:hover {
+  background: var(--accent-hover);
+}
+
+#skin-select {
+  width: 100%;
+  background: var(--canvas-bg);
+  color: var(--text);
+  border: 1px solid var(--canvas-border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+
+#skin-select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Las <option> se dejan con el chrome nativo: el popup del sistema ignora
+   los colores en macOS y tematizarlas a medias las vuelve ilegibles. */
+
+/* Pixel art: bordes duros, sin redondeos. */
+body.skin-pixel #board,
+body.skin-pixel #next-canvas,
+body.skin-pixel #skin-select,
+body.skin-pixel #restart-btn,
+body.skin-pixel kbd {
+  border-radius: 0;
+}
+
+body.skin-pixel .game-title,
+body.skin-pixel #overlay-title,
+body.skin-pixel #restart-btn {
+  font-family: 'Courier New', Courier, monospace;
 }

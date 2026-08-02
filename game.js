@@ -28,6 +28,118 @@ const PIECES = [
 
 const LINE_SCORES = [0, 100, 300, 500, 800];
 
+/* ---- Skins ----------------------------------------------------------------
+   Cada skin define su paleta (array de 8, null en la posición 0 porque el
+   índice de tipo de pieza hace de índice de color), el color de la rejilla y
+   una función de dibujo de bloque (context, px, py, size, color) en píxeles.
+--------------------------------------------------------------------------- */
+
+const SKIN_KEY = 'tetris.skin';
+const DEFAULT_SKIN = 'retro';
+
+function withAlpha(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+}
+
+function roundRectPath(context, x, y, w, h, r) {
+  context.beginPath();
+  if (typeof context.roundRect === 'function') {
+    context.roundRect(x, y, w, h, r);
+    return;
+  }
+  context.moveTo(x + r, y);
+  context.arcTo(x + w, y, x + w, y + h, r);
+  context.arcTo(x + w, y + h, x, y + h, r);
+  context.arcTo(x, y + h, x, y, r);
+  context.arcTo(x, y, x + w, y, r);
+  context.closePath();
+}
+
+// Retro: comportamiento original (cuadrado plano + banda de highlight).
+function drawBlockRetro(context, px, py, size, color) {
+  context.fillStyle = color;
+  context.fillRect(px + 1, py + 1, size - 2, size - 2);
+  context.fillStyle = 'rgba(255,255,255,0.12)';
+  context.fillRect(px + 1, py + 1, size - 2, 4);
+}
+
+// Neon: núcleo tenue + contorno con glow. Resetea shadowBlur al salir.
+function drawBlockNeon(context, px, py, size, color) {
+  const inset = Math.max(2, Math.round(size * 0.08));
+  const x = px + inset, y = py + inset;
+  const w = size - inset * 2, h = size - inset * 2;
+  context.fillStyle = withAlpha(color, 0.2);
+  context.fillRect(x, y, w, h);
+  context.shadowColor = color;
+  context.shadowBlur = size * 0.5;
+  context.strokeStyle = color;
+  context.lineWidth = 2;
+  context.strokeRect(x + 1, y + 1, w - 2, h - 2);
+  context.shadowBlur = 0;
+  context.shadowColor = 'rgba(0,0,0,0)';
+}
+
+// Pastel: colores suaves y esquinas redondeadas.
+function drawBlockPastel(context, px, py, size, color) {
+  const m = 2;
+  const x = px + m, y = py + m, w = size - m * 2, h = size - m * 2;
+  const r = Math.max(3, size * 0.24);
+  context.fillStyle = color;
+  roundRectPath(context, x, y, w, h, r);
+  context.fill();
+  context.fillStyle = 'rgba(255,255,255,0.45)';
+  roundRectPath(context, x + w * 0.16, y + h * 0.14, w * 0.68, h * 0.2, r * 0.5);
+  context.fill();
+  context.strokeStyle = 'rgba(90,80,110,0.25)';
+  context.lineWidth = 1;
+  roundRectPath(context, x + 0.5, y + 0.5, w - 1, h - 1, r);
+  context.stroke();
+}
+
+// Pixel art: bisel de 1 "píxel" + dithering en damero.
+function drawBlockPixel(context, px, py, size, color) {
+  const u = size / 6;
+  context.fillStyle = color;
+  context.fillRect(px, py, size, size);
+  context.fillStyle = 'rgba(255,255,255,0.38)';
+  context.fillRect(px, py, size, u);
+  context.fillRect(px, py, u, size);
+  context.fillStyle = 'rgba(0,0,0,0.38)';
+  context.fillRect(px, py + size - u, size, u);
+  context.fillRect(px + size - u, py, u, size);
+  context.fillStyle = 'rgba(255,255,255,0.16)';
+  for (let i = 1; i < 5; i++)
+    for (let j = 1; j < 5; j++)
+      if ((i + j) % 2 === 0) context.fillRect(px + i * u, py + j * u, u, u);
+  context.strokeStyle = 'rgba(0,0,0,0.55)';
+  context.lineWidth = 1;
+  context.strokeRect(px + 0.5, py + 0.5, size - 1, size - 1);
+}
+
+const SKINS = {
+  retro: {
+    colors: COLORS,
+    grid: '#22222e',
+    draw: drawBlockRetro,
+  },
+  neon: {
+    colors: [null, '#00e5ff', '#ffea00', '#d500f9', '#00ff85', '#ff1744', '#2979ff', '#ff9100'],
+    grid: '#141428',
+    draw: drawBlockNeon,
+  },
+  pastel: {
+    colors: [null, '#a8e4ee', '#ffe9a8', '#dcc0f0', '#bde5c0', '#f5b7b7', '#b9c2ec', '#ffd6a8'],
+    grid: '#e4dcef',
+    draw: drawBlockPastel,
+  },
+  pixel: {
+    colors: [null, '#00b8c4', '#f0c000', '#a040c0', '#40b040', '#d03030', '#3050c8', '#e08020'],
+    grid: '#2b2b1e',
+    draw: drawBlockPixel,
+  },
+};
+
 const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
 const nextCanvas = document.getElementById('next-canvas');
@@ -61,10 +173,12 @@ const clearRecordsBtn = document.getElementById('clear-records-btn');
 const clearConfirm = document.getElementById('clear-confirm');
 const clearYesBtn = document.getElementById('clear-yes');
 const clearNoBtn = document.getElementById('clear-no');
+const skinSelect = document.getElementById('skin-select');
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 let startLevel = 1;
 let combo, maxCombo, started, pendingRecord;
+let activeSkin = DEFAULT_SKIN;
 
 function createBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
@@ -185,20 +299,23 @@ function updateHUD() {
   levelEl.textContent = level;
 }
 
+function currentSkin() {
+  return SKINS[activeSkin] || SKINS[DEFAULT_SKIN];
+}
+
 function drawBlock(context, x, y, colorIndex, size, alpha) {
   if (!colorIndex) return;
-  const color = COLORS[colorIndex];
+  const skin = currentSkin();
+  const color = skin.colors[colorIndex] || COLORS[colorIndex];
   context.globalAlpha = alpha ?? 1;
-  context.fillStyle = color;
-  context.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
-  // highlight
-  context.fillStyle = 'rgba(255,255,255,0.12)';
-  context.fillRect(x * size + 1, y * size + 1, size - 2, 4);
+  context.save();
+  skin.draw(context, x * size, y * size, size, color);
+  context.restore();
   context.globalAlpha = 1;
 }
 
 function drawGrid() {
-  ctx.strokeStyle = '#22222e';
+  ctx.strokeStyle = currentSkin().grid;
   ctx.lineWidth = 0.5;
   for (let c = 1; c < COLS; c++) {
     ctx.beginPath();
@@ -531,6 +648,49 @@ function isTyping(target) {
   return !!target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
 }
 
+function loadSkin() {
+  try {
+    const stored = localStorage.getItem(SKIN_KEY);
+    if (stored && Object.prototype.hasOwnProperty.call(SKINS, stored)) return stored;
+  } catch (err) {
+    // localStorage puede lanzar (modo privado / cookies bloqueadas): skin por defecto.
+  }
+  return DEFAULT_SKIN;
+}
+
+function saveSkin(id) {
+  try {
+    localStorage.setItem(SKIN_KEY, id);
+  } catch (err) {
+    // Sin persistencia, pero el juego sigue funcionando.
+  }
+}
+
+// Repinta ambos canvas al vuelo: en pausa o game over el rAF está cancelado.
+function repaint() {
+  if (board && current) draw();
+  if (next) drawNext();
+}
+
+function applySkin(id) {
+  if (!Object.prototype.hasOwnProperty.call(SKINS, id)) id = DEFAULT_SKIN;
+  activeSkin = id;
+  for (const key of Object.keys(SKINS)) document.body.classList.remove('skin-' + key);
+  document.body.classList.add('skin-' + id);
+  if (skinSelect && skinSelect.value !== id) skinSelect.value = id;
+  repaint();
+}
+
+if (skinSelect) {
+  skinSelect.addEventListener('change', () => {
+    applySkin(skinSelect.value);
+    saveSkin(activeSkin);
+    // Devolvemos el teclado al tablero: con el foco en el <select> las
+    // flechas (y P) son suyas, no del juego.
+    skinSelect.blur();
+  });
+}
+
 document.addEventListener('keydown', e => {
   if (isTyping(e.target)) return; // escribir el nombre no debe mover la pieza
   if (e.code === 'Space') e.preventDefault(); // nunca hacer scroll con la barra
@@ -549,6 +709,9 @@ document.addEventListener('keydown', e => {
   // Con el menú de pausa abierto ninguna tecla llega al juego,
   // aunque el foco esté en el <select> o en un botón del menú.
   if (pauseMenuOpen()) return;
+  // Con el foco en un <select> (skin, nivel inicial) las flechas son suyas,
+  // no del tablero. Va después de P/Escape para que la pausa siga funcionando.
+  if (e.target && e.target.tagName === 'SELECT') return;
   if (paused || gameOver) return;
   switch (e.code) {
     case 'ArrowLeft':
@@ -615,5 +778,6 @@ recordNameInput.addEventListener('keydown', e => {
   }
 });
 
+applySkin(loadSkin()); // antes de pintar nada, para que la pantalla de inicio salga ya tematizada
 started = false;
 showStartScreen();
